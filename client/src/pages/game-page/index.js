@@ -56,7 +56,7 @@ function Game() {
   }, [timer]);
 
   useEffect(() => {
-    if (game && turnUpdate) {
+    if (game) {
       let x = cloneDeep(game);
       x.game_status = turnUpdate?.game_status;
       x.pending_player_index = turnUpdate?.pending_player_index;
@@ -69,8 +69,8 @@ function Game() {
         setMsg(
           `It's ${x.players[turnUpdate?.pending_player_index].name}'s turn`
         );
+        setGame(x);
       }
-      setGame(x);
       if (!t) {
         setInterval(() => {
           // if (game && game.game_status.toLowerCase() === "active") {
@@ -174,12 +174,10 @@ function Game() {
   }, [turnUpdate]);
 
   let drawCanvas = (game) => {
-    if (!game) {
-      return;
-    }
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     const img = new Image();
+    //img.src = `./assets/board${game.board_id}.jpg`;
     img.src = boards[game.board_id - 1];
     img.onload = function () {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -187,7 +185,6 @@ function Game() {
       const cellW = canvas.width / 10.0;
       const cellH = canvas.height / 10.0;
       //draw pieces:
-      let i = 0;
       for (const p of game.players) {
         if (p?.position === 0) {
           continue;
@@ -198,34 +195,18 @@ function Game() {
         ctx.arc(
           x * cellW + cellW / 2.0,
           y * cellH + cellH / 2.0,
-          cellW,
-          0,
-          2 * Math.PI
-        );
-        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-        i = i + 1;
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(
-          x * cellW + cellW / 2.0,
-          y * cellH + cellH / 2.0,
           cellW / 3.0,
           0,
           2 * Math.PI
         );
-        if (p === game.players[game.pending_player_index]) {
-          ctx.fillStyle = "green";
-        } else {
-          ctx.fillStyle = "white";
-        }
+        ctx.fillStyle = "white";
         ctx.fill();
 
         ctx.beginPath();
         ctx.arc(
           x * cellW + cellW / 2.0,
           y * cellH + cellH / 2.0,
-          cellW / 3.5,
+          cellW / 3.3,
           0,
           2 * Math.PI
         );
@@ -237,7 +218,6 @@ function Game() {
 
   const leaveGame = (e) => {
     e.preventDefault();
-    console.log("lol" + gameId);
     const headers = {
       "x-access-token": sessionStorage.getItem("authenticated"),
     };
@@ -253,129 +233,132 @@ function Game() {
   };
 
   return (
-    <div className={styles.gameContainer}>
-      <div className={styles.playersList}>
-        <table className={styles.playersTable}>
-          <thead>
-            <th>Player</th>
-            <th>Position</th>
-          </thead>
-          <tbody>
-            {game?.players?.map((player) => (
-              <tr
-                key={player.id}
-                className={styles.player}
-                style={{
-                  color:
-                    player?.name ==
-                    game.players[game?.pending_player_index]?.name
-                      ? "rgb(141, 206, 206)"
-                      : "black",
-                }}
-              >
-                <td>
-                  <div
-                    className={styles.playerColor}
-                    style={{ backgroundColor: player?.color }}
-                  ></div>
-                  <div>{player?.name}</div>
-                </td>
-                <td>{player?.position}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <>
+      {!game ? null : (
+        <div className={styles.gameContainer}>
+          <div className={styles.playersList}>
+            <table className={styles.playersTable}>
+              <thead>
+                <th>Player</th>
+                <th>Position</th>
+              </thead>
+              <tbody>
+                {game?.players?.map((player) => (
+                  <tr
+                    className={styles.player}
+                    style={{
+                      color:
+                        player?.name ==
+                        game.players[game?.pending_player_index]?.name
+                          ? "rgb(141, 206, 206)"
+                          : "black",
+                    }}
+                  >
+                    <td>
+                      <div>{player?.name}</div>
+                      <div
+                        className={styles.playerColor}
+                        style={{ backgroundColor: player?.color }}
+                      ></div>
+                    </td>
+                    <td>{player?.position}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      <canvas ref={canvasRef} width={749} height={749} />
+          <canvas ref={canvasRef} width={749} height={749} />
 
-      <div className={styles.timerDiceContainer}>
-        <button className="leaveGame" onClick={(e) => leaveGame(e)}>
-          Leave
-        </button>
-        <div className="msg" id="msssg">
-          {msg}
-        </div>
-        <div className={styles.timer}>
-          <Box sx={{ position: "relative", display: "inline-flex" }}>
-            <CircularProgress
-              variant="determinate"
-              value={(progress / 10) * 100}
-              style={{
-                width: "150px",
-                height: "150px",
-                color: "rgb(141, 206, 206)",
-                backgroundColor: "#fff",
-                borderRadius: "50%",
-              }}
-            />
-            <Box
-              sx={{
-                top: 0,
-                left: 0,
-                bottom: 0,
-                right: 0,
-                position: "absolute",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Typography
-                variant="caption"
-                component="div"
-                color="text.secondary"
-                style={{
-                  fontSize: "4rem",
-                  color: "black",
-                  fontFamily: "Bungee",
-                }}
-              >
-                {`${progress}`}
-              </Typography>
-            </Box>
-          </Box>
-        </div>
+          <div className={styles.timerDiceContainer}>
+            <button className="leaveGame" onClick={(e) => leaveGame(e)}>
+              Leave
+            </button>
+            <div className="msg" id="msssg">
+              {msg}
+            </div>
+            <div className={styles.timer}>
+              <Box sx={{ position: "relative", display: "inline-flex" }}>
+                <CircularProgress
+                  variant="determinate"
+                  value={(progress / 10) * 100}
+                  style={{
+                    width: "150px",
+                    height: "150px",
+                    color: "rgb(141, 206, 206)",
+                    backgroundColor: "#fff",
+                    borderRadius: "50%",
+                  }}
+                />
+                <Box
+                  sx={{
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    right: 0,
+                    position: "absolute",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    component="div"
+                    color="text.secondary"
+                    style={{
+                      fontSize: "4rem",
+                      color: "black",
+                      fontFamily: "Bungee",
+                    }}
+                  >
+                    {`${progress}`}
+                  </Typography>
+                </Box>
+              </Box>
+            </div>
 
-        <div ref={rollRef}>
-          <div className="dice dice-one" ref={diceRef}>
-            <div id="dice-one-side-one" className="side one">
-              <div className="dot one-1"></div>
-            </div>
-            <div id="dice-one-side-two" className="side two">
-              <div className="dot two-1"></div>
-              <div className="dot two-2"></div>
-            </div>
-            <div id="dice-one-side-three" className="side three">
-              <div className="dot three-1"></div>
-              <div className="dot three-2"></div>
-              <div className="dot three-3"></div>
-            </div>
-            <div id="dice-one-side-four" className="side four">
-              <div className="dot four-1"></div>
-              <div className="dot four-2"></div>
-              <div className="dot four-3"></div>
-              <div className="dot four-4"></div>
-            </div>
-            <div id="dice-one-side-five" className="side five">
-              <div className="dot five-1"></div>
-              <div className="dot five-2"></div>
-              <div className="dot five-3"></div>
-              <div className="dot five-4"></div>
-              <div className="dot five-5"></div>
-            </div>
-            <div id="dice-one-side-six" className="side six">
-              <div className="dot six-1"></div>
-              <div className="dot six-2"></div>
-              <div className="dot six-3"></div>
-              <div className="dot six-4"></div>
-              <div className="dot six-5"></div>
-              <div className="dot six-6"></div>
+            <div ref={rollRef}>
+              <div className="dice dice-one" ref={diceRef}>
+                <div id="dice-one-side-one" className="side one">
+                  <div className="dot one-1"></div>
+                </div>
+                <div id="dice-one-side-two" className="side two">
+                  <div className="dot two-1"></div>
+                  <div className="dot two-2"></div>
+                </div>
+                <div id="dice-one-side-three" className="side three">
+                  <div className="dot three-1"></div>
+                  <div className="dot three-2"></div>
+                  <div className="dot three-3"></div>
+                </div>
+                <div id="dice-one-side-four" className="side four">
+                  <div className="dot four-1"></div>
+                  <div className="dot four-2"></div>
+                  <div className="dot four-3"></div>
+                  <div className="dot four-4"></div>
+                </div>
+                <div id="dice-one-side-five" className="side five">
+                  <div className="dot five-1"></div>
+                  <div className="dot five-2"></div>
+                  <div className="dot five-3"></div>
+                  <div className="dot five-4"></div>
+                  <div className="dot five-5"></div>
+                </div>
+                <div id="dice-one-side-six" className="side six">
+                  <div className="dot six-1"></div>
+                  <div className="dot six-2"></div>
+                  <div className="dot six-3"></div>
+                  <div className="dot six-4"></div>
+                  <div className="dot six-5"></div>
+                  <div className="dot six-6"></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
