@@ -5,7 +5,7 @@ const GP = db.GamePlayer;
 const ELEM = db.BoardElement;
 const User = db.User;
 const TIMEOUT_DURATION = 10000;
-const makeMove = async (game_id, user, io, force=false) => {
+const makeMove = async (game_id, user, io) => {
   const rollDice = () => Math.ceil(Math.random() * 6);
   let gameID = parseInt(game_id);
   if (isNaN(gameID)) {
@@ -21,89 +21,22 @@ const makeMove = async (game_id, user, io, force=false) => {
     const currentPlayer = game.currentPlayer;
     const authUserId = user.userId;
     if (authUserId !== currentPlayer) {
-        if(!force){
-          return ("No! Wait for your turn");
-        }
-        else{
-          const t = Date.now();
-          await Game.update(
-            {
-              lastPlayTime: t
-            },
-            {
-              where: { Id: gameID },
-            }
-          );
-          setTimeout(
-            async (t, gameID) => {
-              const g = await Game.findOne({ where: { Id: gameID } });
-              console.log(g);
-              if (!g) {
-                return;
-              }
-              const lastPlay = g.lastPlayTime;
-              if (
-                lastPlay &&
-                new Date(t).toISOString().slice(0, -4) ===
-                lastPlay.toISOString().slice(0, -4)
-              ) {
-                console.log("the bot is playing");
-                makeMove(
-                  gameID,
-                  {
-                    userId: currentPlayer,
-                  },
-                  io,true
-                ).then((update) => {
-                  io.in("team-C room-" + String(gameID)).emit("turn-update", update);
-                  console.log("the bot just played");
-                });
-              }
-            },
-            TIMEOUT_DURATION,
-            t,
-            gameID
-          );
-          return {
-            game_status: game.status,
-            pending_player_index: 0,            
-            lastPlayTime: t,
-            move: null
-          }
-        }
-        
+      return "No! Wait for your turn";
     }
     const boardId = game.boardId;
     const gp = await GP.findOne({
       where: { gameID: gameID, playerId: currentPlayer },
     });
-    if(!gp){return"The bot won't dare to play for a gone player :/"}
-
-    
-    const currentOrder = gp.order;
-    let nextOrder = Infinity;
-    let next_player_id = currentPlayer;
-    
-    let foundHigher = false;
-    let min = Infinity;
-    let minPlayerId = game.currentPlayer;
-    const players = await GP.findAll({ where: { gameID: gameID } })
-    for (const element of players) {
-      if (element.order > currentOrder && element.order < nextOrder) {
-        nextOrder = element.order;
-        next_player_id = element.playerId;
-        foundHigher = true;
-      }
-      if(element.order < min){
-        minPlayerId = element.playerId
-        min = element.order
-      }
+    if (!gp) {
+      return;
     }
-    if(!foundHigher){
-      next_player_id = minPlayerId
-    }
-    
     const oldPosition = gp.lastPosition;
+    const currentOrder = gp.order;
+    const nextOrder = (currentOrder % game.playersNumber) + 1;
+    const nextGp = await GP.findOne({
+      where: { gameID: gameID, order: nextOrder },
+    });
+
     let newPos = dice + oldPosition;
     let gameStatus = "ACTIVE";
     if (newPos <= 100) {
@@ -134,11 +67,10 @@ const makeMove = async (game_id, user, io, force=false) => {
       }
     }
 
-
     const t = Date.now();
     await Game.update(
       {
-        currentPlayer:next_player_id,
+        currentPlayer: nextGp.playerId,
         lastPlayTime: t,
       },
       {
@@ -156,15 +88,15 @@ const makeMove = async (game_id, user, io, force=false) => {
         if (
           lastPlay &&
           new Date(t).toISOString().slice(0, -4) ===
-          lastPlay.toISOString().slice(0, -4)
+            lastPlay.toISOString().slice(0, -4)
         ) {
           console.log("the bot is playing");
           makeMove(
             gameID,
             {
-              userId: next_player_id,
+              userId: nextGp.playerId,
             },
-            io,true
+            io
           ).then((update) => {
             io.in("team-C room-" + String(gameID)).emit("turn-update", update);
             console.log("the bot just played");
@@ -205,17 +137,15 @@ const makeMove = async (game_id, user, io, force=false) => {
 
     Players.sort((a, b) => a.order - b.order);
 
+    let last_player_index = Players.findIndex((p) => p.id === currentPlayer);
+    let next_player_index = Players.findIndex((p) => p.id === nextGp.playerId);
 
-    let last_player_index = Players.findIndex((p) => p.id === currentPlayer)
-    let next_player_index = Players.findIndex((p) => p.id === next_player_id)
-
-    if(last_player_index==-1){
-      last_player_index = 0
+    if (last_player_index == -1) {
+      last_player_index = 0;
     }
-    if(last_player_index==-1){
-      next_player_index = 0
+    if (last_player_index == -1) {
+      next_player_index = 0;
     }
-    
 
     return {
       game_status: gameStatus,
@@ -225,12 +155,11 @@ const makeMove = async (game_id, user, io, force=false) => {
         player_index: last_player_index,
         dice_outcome: dice,
         from: oldPosition,
-        to: newPos
-      }
-    }
+        to: newPos,
+      },
+    };
   } else {
-    return ("No such on-going game exists");
+    return "No such on-going game exists";
   }
-
-}
+};
 module.exports = makeMove;
