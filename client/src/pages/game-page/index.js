@@ -57,7 +57,7 @@ function Game() {
 
   useEffect(() => {
     if (game) {
-      let x = cloneDeep(game);
+      let x = { ...game };
       x.game_status = turnUpdate?.game_status;
       x.pending_player_index = turnUpdate?.pending_player_index;
       x.lastPlayTime = turnUpdate?.pending_player_index;
@@ -142,7 +142,7 @@ function Game() {
     }
   }, [diceRef.current, rollRef.current, canvasRef.current, game]);
   useEffect(() => {
-    if (turnUpdate) {
+    if (turnUpdate && turnUpdate.move.to <= 100) {
       const { from, to, dice_outcome, player_index } = turnUpdate.move;
       let newPlayersObject = [...game.players];
       if (
